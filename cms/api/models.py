@@ -1,6 +1,6 @@
 from django.db import models
 import jwt
-from .managers import UserManager
+from .managers import UserManager,AuthorManager,AdminManager
 from datetime import datetime, timedelta,time
 from django.conf import settings
 from django.contrib.auth.models import (
@@ -30,7 +30,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class Author(User,PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['password','full_name','phone','pincode']
-    objects = UserManager()
+    objects = AuthorManager()
 
     def __str__(self):
         return self.email
@@ -38,7 +38,7 @@ class Author(User,PermissionsMixin):
 class Admin(User,PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['password','full_name','phone','pincode']
-    objects = UserManager()
+    objects = AdminManager()
 
     def __str__(self):
         return self.email
@@ -50,3 +50,21 @@ class Content(models.Model):
     summary = models.CharField(max_length=60, blank=False, null=False)
     document = models.FileField()
     categories = models.CharField(max_length=50,blank=True,null=True)
+
+######## Author Blacklist Token model ###############
+class AuthorBlacklistToken(models.Model):
+    token = models.CharField(max_length=500)
+    user = models.ForeignKey(Author, related_name="token_user", on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.token
+
+######## Admin Blacklist Token model ###############
+class AdminBlacklistToken(models.Model):
+    token = models.CharField(max_length=500)
+    user = models.ForeignKey(Admin, related_name="token_user", on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.token

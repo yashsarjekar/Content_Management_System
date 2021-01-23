@@ -17,6 +17,8 @@ from django.contrib import admin
 from django.urls import path
 from api.views import AuthorRegisterView,AuthorLoginView,AuthorContentView,AdminRegisterView
 from api.views import AdminLoginView,AdminContentView,SearchContent
+from api.views import AuthorRefreshToken,AdminRefreshToken
+from api.views import AuthorLogout,AdminLogout
 from django.conf import settings
 from django.conf.urls.static import static
 urlpatterns = [
@@ -28,6 +30,10 @@ urlpatterns = [
     path('admin_login',AdminLoginView.as_view(),name='admin_login'),
     path('admin_view',AdminContentView.as_view(),name='admin_view'),
     path('filter/',SearchContent.as_view(),name='serach_view'),
+    path('author_refresh_token',AuthorRefreshToken.as_view(),name='author_refresh'),
+    path('admin_refresh_token',AdminRefreshToken.as_view(),name='admin_refresh'),
+    path('author_logout',AuthorLogout.as_view(),name='author_logout'),
+    path('admin_logout',AdminLogout.as_view(),name='admin_logout'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root = settings.STATIC_ROOT)

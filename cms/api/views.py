@@ -11,11 +11,12 @@ from rest_framework import permissions
 from .backends import JWTAuthorAuthentication,JWTAdminAuthentication
 from .serializer import ContentSerializer
 import jwt
-from rest_framework import authentication
-from .models import Content
+from rest_framework import authentication,exceptions
+from .models import Content,Author,Admin,AdminBlacklistToken,AuthorBlacklistToken
 import json
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from .utils import generate_access_token,generate_refresh_token
 # Create your views here.
 ################################### Author Section View Code ############################
 
@@ -45,13 +46,15 @@ class AuthorLoginView(generics.GenericAPIView):
         author = authenticate(username = email,password=password)
         print(author)
         if author:
-            auth_token = jwt.encode({'email':author.email},settings.SECRET_KEY)
+            access_token = generate_access_token(author)
+            refresh_token = generate_refresh_token(author)
             user = AuthorSerializer(author)
             data = {
                 'user': user.data,
-                'token': auth_token
+                'access_token':access_token,
+                'refresh_token':refresh_token,
             }
-            print(auth_token)
+            #print(auth_token)
             return JsonResponse(data) 
         message = {'message': 'User Not found'}   
         return JsonResponse(message)
@@ -146,6 +149,85 @@ class AuthorContentView(generics.GenericAPIView):
             message = {'message': 'Please Provide content id'}
             return JsonResponse(message)
 
+########## Author Refresh Token ##################
+class AuthorRefreshToken(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    def post(self,request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:
+            raise exceptions.AuthenticationFailed(
+                'Authentication credentials were not provided.')
+        jwt_options = {
+            'verify_signature': True,
+            'verify_exp': True,
+            'verify_nbf': False,
+            'verify_iat': True,
+            'verify_aud': False
+        }
+        try:
+            payload = jwt.decode(
+                refresh_token,settings.REFRESH_TOKEN_SECRET_KEY,options=jwt_options,
+                algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed(
+                'expired refresh token, please login again.')
+        except jwt.DecodeError as identifier:
+            raise exceptions.AuthenticationFailed(
+                'Your token is invalid,login')
+        blacklist = AuthorBlacklistToken.objects.filter(token=refresh_token).exists()
+        if blacklist:
+            raise exceptions.AuthenticationFailed(
+                'Please Login Again.'
+            )
+        try:
+            user = Author.objects.get(email=payload.get('email'))
+        except Author.DoesNotExist:
+            raise exceptions.AuthenticationFailed(
+                'Not A Valid User Found'
+            )
+        access_token = generate_access_token(user)
+        data = {
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }
+        return JsonResponse(data)
+
+########## Author Logout ##################
+class AuthorLogout(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    def post(self,request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:
+            raise exceptions.AuthenticationFailed(
+                'Authentication credentials were not provided.')
+        jwt_options = {
+            'verify_signature': True,
+            'verify_exp': True,
+            'verify_nbf': False,
+            'verify_iat': True,
+            'verify_aud': False
+        }
+        try:
+            payload = jwt.decode(
+                refresh_token,settings.REFRESH_TOKEN_SECRET_KEY,options=jwt_options,
+                algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed(
+                'expired refresh token, please login again.')
+        except jwt.DecodeError as identifier:
+            raise exceptions.AuthenticationFailed(
+                'Your token is invalid,login')  
+        try:
+            user = Author.objects.get(email=payload.get('email'))
+        except Author.DoesNotExist:
+            raise exceptions.AuthenticationFailed(
+                'Not A Valid User Found'
+            )
+        if user:
+            token_blacklist = AuthorBlacklistToken(token=refresh_token,user=user)
+            token_blacklist.save()
+            message = {'message':'You have Logout Successfully'}
+            return JsonResponse(message)
 
 ########################  Admin Section View Code ##########################
 
@@ -174,11 +256,13 @@ class AdminLoginView(generics.GenericAPIView):
         password = parsed_data.get('password')
         admin = authenticate(username = email,password=password)
         if admin:
-            auth_token = jwt.encode({'email':admin.email},settings.SECRET_KEY)
+            access_token = generate_access_token(admin)
+            refresh_token = generate_refresh_token(admin)
             user = AdminSerializer(admin)
             data = {
                 'user': user.data,
-                'token': auth_token
+                'access_token': access_token,
+                'refresh_token': refresh_token
             }
             return JsonResponse(data) 
         message = {'message': 'Admin Not found'}   
@@ -244,7 +328,86 @@ class SearchContent(generics.ListAPIView):
     filter_backends = [SearchFilter]
     search_fields = ['^title', '^body','^summary','^categories']
         
-        
-        
+
+
+############ Admin Refresh Token ##############
+class AdminRefreshToken(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    def post(self,request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:
+            raise exceptions.AuthenticationFailed(
+                'Authentication credentials were not provided.')
+        jwt_options = {
+            'verify_signature': True,
+            'verify_exp': True,
+            'verify_nbf': False,
+            'verify_iat': True,
+            'verify_aud': False
+        }
+        try:
+            payload = jwt.decode(
+                refresh_token,settings.REFRESH_TOKEN_SECRET_KEY,options=jwt_options,
+                algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed(
+                'expired refresh token, please login again.')
+        except jwt.DecodeError as identifier:
+            raise exceptions.AuthenticationFailed(
+                'Your token is invalid,login')
+        blacklist = AdminBlacklistToken.objects.filter(token=refresh_token).exists()
+        if blacklist:
+            raise exceptions.AuthenticationFailed(
+                'Please Login Again.'
+            )
+        try:
+            print(payload.get('email'))
+            user = Admin.objects.get(email=payload.get('email'))
+        except Author.DoesNotExist:
+            raise exceptions.AuthenticationFailed(
+                'Not A Valid User Found'
+            )
+        access_token = generate_access_token(user)
+        data = {
+            'access_token': access_token,
+            'refresh_token': refresh_token
+        }
+        return JsonResponse(data)
     
-    
+
+########## Admin Logout ##################
+class AdminLogout(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    def post(self,request):
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:
+            raise exceptions.AuthenticationFailed(
+                'Authentication credentials were not provided.')
+        jwt_options = {
+            'verify_signature': True,
+            'verify_exp': True,
+            'verify_nbf': False,
+            'verify_iat': True,
+            'verify_aud': False
+        }
+        try:
+            payload = jwt.decode(
+                refresh_token,settings.REFRESH_TOKEN_SECRET_KEY,options=jwt_options,
+                algorithms=['HS256'])
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed(
+                'expired refresh token, please login again.')
+        except jwt.DecodeError as identifier:
+            raise exceptions.AuthenticationFailed(
+                'Your token is invalid,login')  
+        try:
+            user = Admin.objects.get(email=payload.get('email'))
+        except Author.DoesNotExist:
+            raise exceptions.AuthenticationFailed(
+                'Not A Valid User Found'
+            )
+        if user:
+            token_blacklist = AdminBlacklistToken(token=refresh_token,user=user)
+            token_blacklist.save()
+            message = {'message':'You have Logout Successfully'}
+            return JsonResponse(message)

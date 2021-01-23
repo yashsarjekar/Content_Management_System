@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'api',
-    'django_filters'
+    'django_filters',
 ]
 
 REST_FRAMEWORK = {
@@ -126,7 +126,7 @@ USE_L10N = True
 
 USE_TZ = True
 
-
+REFRESH_TOKEN_SECRET_KEY = '93kdsjdjnoi3ioekjwjkewwjewkkweuo354545ed##3nwu3#@$@#@'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

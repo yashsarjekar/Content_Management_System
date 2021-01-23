@@ -14,25 +14,30 @@ class JWTAuthorAuthentication(authentication.BaseAuthentication):
 
         if not auth_data:
             return None
-
-        prefix, token = auth_data.decode('utf-8').split(' ')
-        #print(token)
-        payload = jwt.decode(token,options={"verify_signature": False})
-        email = payload.get('email')
-        #print(email)
+        jwt_options = {
+            'verify_signature': True,
+            'verify_exp': True,
+            'verify_nbf': False,
+            'verify_iat': True,
+            'verify_aud': False
+        }
+        
         try:    
-            user = Author.objects.get(email=payload.get('email'))
-            return (user, token)
-        except Author.DoesNotExist:
+            access_token = auth_data.decode('utf-8').split(' ')[1] 
+            payload = jwt.decode(access_token,settings.SECRET_KEY,options=jwt_options,algorithms=['HS256'])      
+        except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed(
-                'Not A Valid User Found'
-            )
+                'Your token is expired, Please login again')
         except jwt.DecodeError as identifier:
             raise exceptions.AuthenticationFailed(
                 'Your token is invalid,login')
-        except jwt.ExpiredSignatureError as identifier:
+        try:
+            user = Author.objects.get(email=payload.get('email'))
+            return (user, access_token)
+        except Author.DoesNotExist:
             raise exceptions.AuthenticationFailed(
-                'Your token is expired,login')
+                'Not A Valid User Found'
+            )      
 
         return super().authenticate(request)
 
@@ -46,23 +51,28 @@ class JWTAdminAuthentication(authentication.BaseAuthentication):
 
         if not auth_data:
             return None
-
-        prefix, token = auth_data.decode('utf-8').split(' ')
+        jwt_options = {
+            'verify_signature': True,
+            'verify_exp': True,
+            'verify_nbf': False,
+            'verify_iat': True,
+            'verify_aud': False
+        }
         
-        payload = jwt.decode(token,options={"verify_signature": False})
-        email = payload.get('email')
-        try:    
-            user = Admin.objects.get(email=payload.get('email'))
-            return (user, token)
-        except Admin.DoesNotExist:
-            raise exceptions.AuthenticationFailed(
-                'Not A Valid User Found'
-            )
+        try: 
+            access_token = auth_data.decode('utf-8').split(' ')[1]    
+            payload = jwt.decode(access_token,settings.SECRET_KEY,options=jwt_options,algorithms=['HS256'])
         except jwt.DecodeError as identifier:
             raise exceptions.AuthenticationFailed(
                 'Your token is invalid,login')
         except jwt.ExpiredSignatureError as identifier:
             raise exceptions.AuthenticationFailed(
                 'Your token is expired,login')
-
+        try:   
+            user = Admin.objects.get(email=payload.get('email'))
+            return (user, access_token)
+        except Admin.DoesNotExist:
+            raise exceptions.AuthenticationFailed(
+                'Not A Valid User Found'
+            )
         return super().authenticate(request)

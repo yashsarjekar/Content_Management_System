@@ -1,6 +1,6 @@
 ############################# Required Libraries #####################
 from rest_framework import serializers
-from .models import Author,Content,Admin
+from .models import Author,Content,Admin,AuthorBlacklistToken,AdminBlacklistToken
 from .backends import authentication
 import re
 from django.core.validators import validate_email
@@ -71,3 +71,4 @@ class AdminSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         return Admin.objects.create_user(**validated_data)
+
