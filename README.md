@@ -9,6 +9,10 @@ git clone https://github.com/yashsarjekar/Content_Management_System.git
 ```bash
 pipenv shell
 ```
+### Move to Content_Management_System
+```bash
+cd Content_Management_System
+```
 ### Install Requirements
 ```bash
 pip install -r requirements.txt
